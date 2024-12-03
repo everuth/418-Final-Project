@@ -7,19 +7,17 @@ Regression analysis of precipitation and fire data in BC 2023
 ## Introduction
 Fire is an increasing problem in British Columbia and In a heavily forested province wildfires are of extreme concern. In the last decade we have seen increasingly severe wildfire seasons  which have damaged communities, destroyed wildlife habitat and had devastating economic impacts (Cohen and Westhaven, 2022; Parisien et al. 2023). Being able to predict weather patterns associated with fire is useful for allocating resources and preparing communities. A more comprehensive understanding of what drives bad fire seasons is especially important as climate change shifts weather patterns changing the parameters of what we can expect from year to year. 
 
-Intuitively it makes sense that areas with higher precipitation will experience fewer fires but is this really the case? Multiple studies both within and outside of BC have found that dryer summers produce more severe fire seasons but less research has been done on what influences the spatial variability of fires within a given year (Holden et al., 2018; Meyn et al.,2013; Vore et al., 2020; Zhao, 2015). Two 2012 papers from Europe and China examined the causes of the spatial distribution of fire and found that fire location was influenced by precipitation but human impacts to the landscape also played a significant role (Liu et al., 2012; Oliveira et al., 2012). There does not appear to be any more recent analysis of the spatial relationship between fire and precipitation nor is there any research on that subject from within British Columbia.
+Intuitively it makes sense that areas with higher precipitation will experience fewer fires but is this really the case? Multiple studies both within and outside of BC have found that dryer summers produce more severe fire seasons but less research has been done on what influences the spatial variability of fires within a given year (Holden et al., 2018; Meyn et al.,2013; Vore et al., 2020; Zhao, 2015). Two papers from Europe and China examined the causes of the spatial distribution of fire and found that fire location was influenced by precipitation but human impacts to the landscape also played a significant role (Liu et al., 2012; Oliveira et al., 2014). There does not appear to be any more recent analysis of the spatial relationship between fire and precipitation nor is there any research on that subject from within British Columbia.
 
 In this tutorial we will walk through the steps needed to examine the spatial relationship between fire density and mean daily precipitation values in the 2023 fire season in British columbia. We will discuss the different statistical tests available to better understand the relationship between the two variables and we will learn how to apply them. I will also share tips and tricks for troubleshooting potential issues that may come up during this analysis. The hypothesis for this analysis is the following:
 
-**The null hypothesis**:Average daily precipitation from May - October in 2023 does not explain fire density in 2023 in British Columbia. 
+**The Null hypothesis**:Average daily precipitation from May - October in 2023 does not explain fire density in 2023 in British Columbia. 
 
 **The Alternate hypothesis**: Average daily precipitation from May - October in 2023 does explain fire density in 2023 in British columbia.
 
 The fire data used in this analysis comes from the BC open data catalogue and is titled “BC Wildfire Incident Locations - Historical” you can find this and many more amazing free datasets on the BC data catalogue website: https://catalogue.data.gov.bc.ca/datasets 
 
 The precipitation data used in this analysis comes from the Pacific Climate Impacts Consortium open data portal. The data I downloaded from the PCIC website came from the following station networks: BC Hydro, BC Ministry of Environment and Climate Change Strategy, BC Ministry of Forests - Wildfire Service Network, Ministry of Transportation and Infrastructure - Automated stations. You can access the PCIC open data portal here: https://www.pacificclimate.org/data/bc-station-data-disclaimer 
-
-
 
 ## Data cleaning 
 ### Precipitation data
@@ -191,6 +189,7 @@ fire_data_2023 <- subset(fire_data_2023, !is.na(IGN_DATE))
 st_write(fire_data_2023, "fire_data_2023.shp")
 ```
 And thats it! Your data is now clean so you can begin your analysis. 
+
 ## Evaluating spatial distribution of fires in 2023
 Point pattern analysis is an umbrella term used to describe multiple statistical tests that measure the distribution of points in space (Boots & Getis, 1988). Points can either be clustered, randomly distributed or dispersed. The three tests we will be using to measure the distribution of fires in BC in the summer of 2023 are: Nearest Neighbour distance analysis, Quadrat analysis and Kernel Density Analysis. 
 
@@ -198,7 +197,8 @@ In a contiguous quadrat analysis we place a grid over our study area and measure
 
 Two dimensional nearest neighbor analysis measures the distance between one point and the next nearest point. Average nearest neighbor distance within a study area is calculated by measuring the distance between each point and its nearest neighbor, adding all of these values together and then dividing the final value by the number of points within the study area (Boots & Getis, 1988). The resulting value can then be compared to the average values for spatially random, dispersed and clustered distributions (Boots & Getis, 1988).
 
-The K-function also known as Ripleys K-function is a second order analysis of point patterns (Haase, 1995). Like other point pattern analysis methods it helps determine what distribution a point pattern follows but unlike other methods it can be used to visualize whether the pattern of point distribution changes at different scales (Haase, 1995). For example at the scale of a watershed vehicle fires may be randomly distributed but if we are to zoom out to the scale of the province we might find clustering. 
+The K-function also known as Ripleys K-function is a second order analysis of point patterns (Haase, 1995). Like other point pattern analysis methods it helps determine what distribution a point pattern follows but unlike other methods it can be used to visualize whether the pattern of point distribution changes at different scales (Haase, 1995). For example at the scale of a watershed fires may be randomly distributed but if we are to zoom out to the scale of the province we might find clustering. The K-function analysis will produce a graph that allows us to visualize how distribution changes at different scales.
+
 Inorder to conduct any point pattern analysis we must first create a ppp object which is required by spatstat to conduct analysis. 
 ```
 shapefile_path <- "fire_data_2023.shp"  # Replace with the path to your shapefile
@@ -246,6 +246,7 @@ kable(nndResults, caption = "NND results for 'Fire locations May-October 2023")
 ```
 The code above creates this table. We can see that the NND score is below the NNDr score meaning that on average 
 the fires are closer together than we would expect for a random distribution. This is supported by the Z score of -26.39 which indicates a strongly clustered distribution.
+
 **Table 1**: NND results for Fire locations May-October 2023
 
 |    StudyArea|     NNDd|    NNDr|     NND| Zscore| Ratio|
@@ -300,13 +301,15 @@ png("k_function_envelope_plot.png", width = 800, height = 600)  # Specify file n
 plot(k.fun.e, main = "")  # Your plot code
 dev.off()  # Close the graphical device
 ```
-This creates this map. We can see that the observed K value stays well out of the gray range of randomness and becomes increasingly clustered at larger distances.
+This creates this graph. We can see that the observed K value becomes increasingly distinct from the theoretical random distribution with increasing distance. This indicates that fire point data is increasingly clustered as scale decreases. This aligns with our other results all of which indicate that fire locations from May - October 2023 exhibit significant spatial clustering. 
 ![k_function_envelope_plot](https://github.com/user-attachments/assets/19a98f0c-6c7f-45cc-9fad-c85fab2c4360)
+
+**figure 1.** K-function results of fire locations May-October 2023
 
 ## Creating a Predictive surface for precipitation
 Predictive surfaces are created through the mathematical interpolation of existing data points. Rainfall is notoriously challenging to interpolate due to its high degree of spatial variability (Dirks et al., 1998). The right approach to modeling it depends on the trends in the data and the density of weather station coverage. We will examine two methods of spatial interpolation, compare their results and determine which method we should move forward with. 
 
-Inverse distance weighting (IDW) is a simple method of spatial interpolation whereby unknown precipitation values are predicted based on nearby values. Each cell has a weight that decreases with distance so cells are more influenced by other nearby cells than those further away. It is important to note that IDW assumes a constant distance decay, this is no the case for kriging (Choi & Chong 2022). Kriging is more computationally involved and takes into consideration the overall spatial arrangement of data (Choi & Chong 2022). Kriging is often considered superior because of its ability to work with non linear data (Choi & Chong 2022). However some studies have found that IDW works just as well given the right conditions (Dirks et al., 1998).
+Inverse distance weighting (IDW) is a simple method of spatial interpolation whereby unknown precipitation values are predicted based on nearby values. Each cell has a weight that decreases with distance so cells are more influenced by other nearby cells than those further away (Dirks et al., 1998). It is important to note that IDW assumes a constant distance decay, this is no the case for kriging (Choi & Chong 2022). Kriging is more computationally involved and takes into consideration the overall spatial arrangement of data (Choi & Chong 2022). Kriging is often considered superior because of its ability to work with non linear data (Choi & Chong 2022). However some studies have found that IDW works just as well given the right conditions (Dirks et al., 1998).
 
 First we will create an interpolated surface using IDW
 
@@ -366,10 +369,11 @@ ggsave("Clipped_IDW_Interpolation_Map.png", width = 10, height = 8, dpi = 300)
 ```
 This should create the map we see below. As you can see IDW did a good job representing the 
 spatial variability of precipitation in the province but it is surprising that predited 
-rainfall is so small in the North west of the and on the central coast. These areas are typically famous 
+rainfall is so small in the North West of the province and the central coast. These areas are typically famous 
 for being very wet. While it is posible they experienced and unusually dry summer in 2023 it seems 
-more likely that the sparse coverage of weather stations in that region was unable to capture sufficient data.
+more likely that the sparse coverage of weather stations in that region was unable to capture sufficient data to create a realistic surface.
 ![Clipped_IDW_Interpolation_Map3](https://github.com/user-attachments/assets/396e0ec6-e971-4bf8-a821-a524dd1330d3)
+**Figure 2.** IDW Interpolation of Daily precipitation in B.C. from May - October 2023
 
 Next we will attempt a an interpolation using the kriging method. The first step is to create a semivariogram that 
 can be used to inform our results. Kriging has 3 different variogram models spherical, gaussian, and exponential. In this example I use the 
@@ -403,8 +407,10 @@ plot(var.smpl, dat.fit)
 # Check results
 print(dat.fit)
 ```
-This produces a semivariogram that you can see below. The value for psill is 1.377695 and the range is 32717.65. 
+This produces a semivariogram that you can see below. The value for psill is 1.377695 and the range is 32717.65. You can see this variogram has a very smooth distribution with very little noise, lets see what kind of interpolated surface this creates.  
 ![variogram_plot](https://github.com/user-attachments/assets/33baeae6-3d43-41ed-85b4-24855721c699)
+
+**Figure 3.** Spherical variogram model of daily precipitation data in B.C. Summer 2023.
 ```
 bbox_pre_data <- st_bbox(PrecipData)
 bbox_pre_data
@@ -450,16 +456,11 @@ map <- tm_shape(predicted_raster) +
   tm_scale_bar()
 tmap_save(map, filename = "kriging_results.png", width = 10, height = 8, dpi = 300)
 ```
-The interpolated surface looks like this we see that in comparison to the IDW surface it is much smoother with most of BC predicted to have an average of _mm per day in the summer
-of 2023, with a few outlier locations. Knowning that BC contains so much variablility in its summer precipitation the Kriging surface seems unrealisticly smooth. We will continue
-to the next steps using the IDW results 
+Here is the interpolated surface, we see that in comparison to the IDW surface it is much smoother with most of BC predicted to have an average of 1-2mm per day in the summerof 2023, with a few outlier locations (figure 4). Knowning that BC contains so much variablility in its summer precipitation the Kriging surface seems unrealisticly smooth. Because of this we will continue on to the next steps using the IDW results. 
 ![kriging_results](https://github.com/user-attachments/assets/2197ba51-1c0d-47a7-bc7e-196f38e18fa7)
-
+**Figure 4.** Kriging interpolated surface of daily precipitation in B.C. Summer 2023.
 ## Creating a wildfire density surface 
-This is a relatively simple process. You work with the fire data from 2023 that you cleaned earlier and use it to create a 
-raster where each cell has value representing the number of fires found within it. I set the raster resolution to 50000 meters to achieve a decent 
-resolution while keeping the computational time needed relatively low. You can choose to raise or lower this value but make sure that you match 
-the resolution to the resoluton of your interpolated surface. 
+This is a relatively simple process. You will work with the fire data from 2023 that you cleaned earlier and use it to create a raster where each cell has value representing the number of fires found within it. I set the raster resolution to 50000 meters to achieve a decent resolution while keeping the computational time needed relatively low. You can choose to raise or lower this value but make sure that you match the resolution to the resoluton of your interpolated surface. 
 ```
 library(sf)
 library(dplyr)
@@ -521,18 +522,12 @@ st_write(density_sf, "density_points.shp", delete_dsn = TRUE)
 ```
 The map you created should look like the one seen below. As we might expect the southern interior has the highest density of fires. 
 ![FireDensity_mapReal2023](https://github.com/user-attachments/assets/0339497f-7987-420b-87de-f2cfb090aa4d)
-
+**Figure 5.** Fire density map of B.C. summer 2023. 
 ## Determining if Precipitation explains fire locations
 
-Regression analysis is used to determine if one process can explain another. You have a independent variable and a dependent variable 
-and you use regression analysis to measure how much of the variance of the dependent variable can be explained by the independent variable. 
-In this project fire is the dependent variable and we are trying to determine how much fire location can be explained by the amount of precipitation
-which is the independent variable. The first regression test we will conduct is Ordinary Least Squares Regression (OLS)
+Regression analysis is used to determine if one process can explain another. You have a independent variable and a dependent variable and you use regression analysis to measure how much of the variance of the dependent variable can be explained by the independent variable. In this project fire is the dependent variable and we are trying to determine how much fire location can be explained by the amount of precipitation which is the independent variable. The first regression test we will conduct is Ordinary Least Squares Regression (OLS)
 
-Ordinary Least Squares is a form of multiple linear regression analysis. It fits a line using vertical residuals and assumes that independent variables 
-were measured perfectly and that any variation from the line is due to the dependent variable (Kilmer & Rodríguez, 2017). It also assumes Normality and 
-linearity meaning that the dependent variable must be normally distributed and the relationship between the dependent and independent variables must be 
-linear (Kilmer & Rodríguez, 2017). These assumptions must be met to create a reliable model. 
+Ordinary Least Squares is a form of multiple linear regression analysis. It fits a line using vertical residuals and assumes that independent variables were measured perfectly and that any variation from the line is due to the dependent variable (Kilmer & Rodríguez, 2017). It also assumes Normality and linearity meaning that the dependent variable must be normally distributed and the relationship between the dependent and independent variables must be linear (Kilmer & Rodríguez, 2017). These assumptions must be met to create a reliable model. 
 
 First you need to conduct a spatial join of your fire density and IDW data and create a CSV file that contains the data from both of them. 
 ```
@@ -563,7 +558,7 @@ final_data_df <- st_drop_geometry(final_data)
 # Write as CSV
 write.csv(final_data_df, "final_data.csv", row.names = FALSE)
 ```
-Now that your data is joined you can preform an Ordinary Least Squares regression analysis
+Now that your data is joined you can preform an ordinary least squares regression analysis
 ```
 library(sp)
 library(ggplot2)
@@ -600,8 +595,7 @@ ggplot(data = final_data_sf) +
 ggsave("residuals_map.png", width = 10, height = 8, dpi = 300)
 ```
 
-If you compare this map to the fire desity map you will notice a striking similarity this indicates that our model is likely not very reliable. 
-Lets conduct further analysis to better understand these results. 
+If you compare this map to the fire desity map you will notice a striking similarity this indicates that our model is likely not very reliable. Lets conduct further analysis to better understand these results. 
 
 ```
   # Check residuals
@@ -636,15 +630,12 @@ plot(fires ~ prcpttn, data = final_data_sf)
 dev.off()
 
 ```
-When we check the correlation between the values for the residuals and the fire data we get a value of 0.9960845 which indicates a 99% correlation. The fact that our 
-regression model is so closely correlated to our fire density data indicates that this is not successful model for this data set likely because the data violated one 
-of the primary assumptions which is that the independent variable should be measured perfectly. We know that our interpolated surface was not a perfect measure of 
-precitptation in the summer of 2023. When we look at the scatter plot below we can see that while some of the highest desenstieis of fire occur in 
-areas with low precipitation many other areas with low precipitation have no fires at all.
+When we check the correlation between the values for the residuals and the fire data we get a value of 0.9960845 which indicates a 99% correlation. The fact that our regression model is so closely correlated to our fire density data indicates that this is not successful model for this data set likely because the data violated one of the primary assumptions which is that the independent variable should be measured perfectly. We know that our interpolated surface was not a perfect measure of 
+precitptation in the summer of 2023. When we look at the scatter plot below we can see that while some of the highest desenstieis of fire occur in areas with low precipitation many other areas with low precipitation have no fires at all.
 ![scatterplot](https://github.com/user-attachments/assets/dd2967ca-d66d-4256-a638-85ca01aa1462)
-Given what we have just learned about our regression model we know that conducting a geographically weighted regression with the same residuals is not likely
-to produce useable results. However for the sake of learning more about regression models and how to create them in R we will continue on. 
-Next we will conduct a geographically weighted regression to see whether the correlation is stronger in some areas.
+**Figure 6.** Scatter plot of fire density frequecy along a precipitation gradient. 
+
+Given what we have just learned about our regression model we know that conducting a geographically weighted regression with the same residuals is not likely to produce useable results. However for the sake of learning more about regression models and how to create them in R we will continue on. 
 ```
 install.packages("spgwr")
 library(sf)
@@ -733,18 +724,46 @@ ggplot(data = gwr_output_sf_fixed) +
 # Optional: Save the plot
 ggsave("gwr_coefficients_fixed_bandwidth.png", width = 10, height = 8, dpi = 300)
 ```
+This code should create the following map. It has an interesting pattern but given how many assumptions we have violated we know that its results are ultimately meaningless. Under different circumstances this map would indicate that the southern interior and coast are well represented by the regression model because these areas have values at and close to 0. 
 ![gwr_coefficients_fixed_bandwidth](https://github.com/user-attachments/assets/3bd9653f-aa6e-4627-9f80-b70cdbf38ab5)
-The map we have created here migh look nice but given how many assumptions we know we have violated we know that its results are ultimately meaningless. 
-Under different circumstances a map like this would indicate that the southern interior and coast are well represented by the regression model because 
-these areas have values at and close to 0. 
+**Figure 7**. GWR coeffiecients mapped. 
+
 
 ## Disscussion  
-Ultimately our results fail to disprove the null hypothesis that Average daily precipitation from May - October in 2023 
-does not explain fire density in 2023 in British Columbia. The scatterplot of fire density and precipitation is prehaps the most powerful piece of 
-evidence in support of the Null hypothesis as it clearly demonstrates the lack of relationship between the two variables. It is likely that some of this lack of relationship
-is due to insufficient coverage of weather stations leading to an unreliable interpolated surface especially in north western B.C.. 
+Ultimately our results fail to disprove the null hypothesis that average daily precipitation from May - October in 2023 
+does not explain fire density in 2023 in British Columbia. The scatterplot of fire density and precipitation is prehaps the most powerful piece of evidence in support of the null hypothesis as it clearly demonstrates the lack of relationship between the two variables (figure 6). It is likely that some of this lack of relationship is due to insufficient coverage of weather stations leading to an unreliable interpolated surface especially in north western B.C.. But even more likely is that fire density is heavily influenced by many other variables including temperature, location of roads, vegetation, and proximity to major population centers (Oliveira et al., 2012). In future it may be more useful to consider other ways to measure precipitations relationship to fire. Other studies have compared total area burned to number of wetting rain days or cummulative precipitation with intresting results so it is possible that these metrics are more reliable (Holden et al., 2018; Vore et al., 2020). 
 
 ## Conclusion 
-Through the course of this tutorial we cleaned processed and analysed fire and precipitation data using techniques like point pattern analysis, 
-interpolation and regression analysis.
+Through the course of this tutorial we cleaned processed and analysed fire and precipitation data using techniques like point pattern analysis, interpolation and regression analysis. We learned some introductory background on the theory behind these methods and gained hands on experience implementing them in R coding languge. While the results of our analysis proved to be unexpected and perhaps slightly disapointing the skills and knowledge we take away are inavluable and can be easily applied to other datasets and projects. 
+
+## References 
+Boots, B.N., & Getis, A. (1988). Point Pattern Analysis. Reprint. Edited by Grant Ian Thrall. WVU Research Repository, 2020.
+
+Brunsdon, C., Fotheringham, S., & Charlton, M. (1998). Geographically Weighted Regression-Modelling Spatial Non-Stationarity. Journal of the Royal Statistical Society. Series D (The Statistician), 47(3), 431–443. http://www.jstor.org/stable/2988625 
+
+Choi, K., & Chong, K. (2022). Modified Inverse Distance Weighting Interpolation for Particulate Matter Estimation and Mapping. Atmosphere, 13(5), 846. https://doi-org.ezproxy.library.uvic.ca/10.3390/atmos13050846
+
+​​Cohen, J., & Westhaver, A. (2022, May). An examination of the Lytton, British Columbia wildland- ... Summary Report to the British Columbia FireSmartTM Committee. https://firesmartbc.ca/wp-content/uploads/2022/05/An-examination-of-the-Lytton-BC-wildland-urban-fire-destruction.pdf
+
+Dirks, Hay, Stow, D. Harris, (1998) High-resolution studies of rainfall on Norfolk Island: Part II: Interpolation of rainfall data,Journal of Hydrology,Volume 208, Issues 3–4,,
+
+Haase, P. (1995), Spatial pattern analysis in ecology based on Ripley's K-function: Introduction and methods of edge correction. Journal of Vegetation Science, 6: 575-582. https://doi-org.ezproxy.library.uvic.ca/10.2307/3236356
+
+Holden, Z. A., Swanson, A., Luce, C. H., Jolly, W. M., Maneta, M., Oyler, J. W., Warren, D. A., Parsons, R., & Affleck, D. (2018). Decreasing fire season precipitation increased recent Western US Forest wildfire activity. Proceedings of the National Academy of Sciences, 115(36). https://doi.org/10.1073/pnas.1802316115
+
+ Kilmer,  Rodríguez, (2017) Ordinary least squares regression is indicated for studies of allometry, Journal of Evolutionary Biology, Volume 30, Issue 1,, Pages 4–12, https://doi-org.ezproxy.library.uvic.ca/10.1111/jeb.12986 
+
+Liu, Z., Yang, J., Chang, Y., Weisberg, P. J., & He, H. S. (2012). Spatial patterns and drivers of fire occurrence and its future trend under climate change in a Boreal Forest of Northeast China. Global Change Biology, 18(6), 2041–2056. https://doi.org/10.1111/j.1365-2486.2012.02649.x 
+
+MEYN, A., TAYLOR, S.W., FLANNIGAN, M.D., THONICKE, K. and CRAMER, W. (2010), Relationship between fire, climate oscillations, and drought in British Columbia, Canada, 1920–2000. Global Change Biology, 16: 977-989. 
+https://doi-org.ezproxy.library.uvic.ca/10.1111/j.1365-2486.2009.02061.x
+
+Meyn, A., Schmidtlein, S., Taylor, S. W., Girardin, M. P., Thonicke, K., & Cramer, W. (2012). Precipitation-driven decrease in wildfires in British Columbia. Regional Environmental Change, 13(1), 165–177. https://doi.org/10.1007/s10113-012-0319-0
+
+Oliveira, S., Pereira, J. M. C., San-Miguel-Ayanz, J., & Lourenço, L. (2014). Exploring the spatial patterns of fire density in southern Europe using geographically weighted regression. Applied Geography, 51, 143–157. https://doi.org/10.1016/j.apgeog.2014.04.002
+
+Parisien, M.-A., Barber, Q. E., Bourbonnais, M. L., Daniels, L. D., Flannigan, M. D., Gray, R. W., Hoffman, K. M., Jain, P., Stephens, S. L., Taylor, S. W., & Whitman, E. (2023). Abrupt, climate-induced increase in wildfires in British Columbia since the mid-2000s. Communications Earth &amp; Environment, 4(1). https://doi.org/10.1038/s43247-023-00977-1  
+ 
+Vore, M. E., Déry, S. J., Hou, Y., & Wei, X. (2020). Climatic influences on forest fire and mountain pine beetle outbreaks and resulting runoff effects in large watersheds in British Columbia, Canada. Hydrological Processes, 34(24), 4560–4575. https://doi.org/10.1002/hyp.13908 
+
 
